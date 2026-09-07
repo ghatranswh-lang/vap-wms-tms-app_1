@@ -2,10 +2,18 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { createPurchaseOrder, type PoFormState } from "./actions";
+import SearchSelect from "@/components/SearchSelect";
 
 type Option = { id: number; label: string };
 type ItemOption = { id: number; maHang: string; tenHang: string };
-type ZoneOption = { id: number; companyId: number; label: string };
+type ZoneOption = {
+  id: number;
+  companyId: number;
+  warehouseId: number;
+  label: string;
+};
+
+const CURRENCIES = ["VND", "USD", "CNY"];
 
 type Line = {
   key: number;
@@ -26,11 +34,13 @@ export default function PoForm({
   suppliers,
   items,
   zones,
+  warehouses,
 }: {
   companies: Option[];
   suppliers: Option[];
   items: ItemOption[];
   zones: ZoneOption[];
+  warehouses: Option[];
 }) {
   const initialState: PoFormState = {};
   const [state, formAction, pending] = useActionState(
@@ -44,13 +54,20 @@ export default function PoForm({
   const [supplierId, setSupplierId] = useState<number | "">(
     suppliers[0]?.id ?? ""
   );
+  const [warehouseId, setWarehouseId] = useState<number | "">("");
   const [zoneId, setZoneId] = useState<number | "">("");
+  const [currency, setCurrency] = useState("VND");
   const [ghiChu, setGhiChu] = useState("");
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
 
-  const zonesForCompany = useMemo(
-    () => zones.filter((z) => z.companyId === companyId),
-    [zones, companyId]
+  const zonesForSelection = useMemo(
+    () =>
+      zones.filter(
+        (z) =>
+          z.companyId === companyId &&
+          (warehouseId === "" || z.warehouseId === warehouseId)
+      ),
+    [zones, companyId, warehouseId]
   );
 
   const totals = useMemo(() => {
@@ -67,6 +84,11 @@ export default function PoForm({
     return { tienHang, tienVat, thanhTien: tienHang + tienVat };
   }, [lines]);
 
+  const itemOptions = useMemo(
+    () => items.map((it) => ({ id: it.id, label: `${it.maHang} — ${it.tenHang}` })),
+    [items]
+  );
+
   function updateLine(key: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
@@ -76,7 +98,7 @@ export default function PoForm({
       companyId,
       supplierId,
       zoneId: zoneId || undefined,
-      currency: "VND",
+      currency,
       ghiChu,
       lines: lines
         .filter((l) => l.itemId !== "")
@@ -118,14 +140,45 @@ export default function PoForm({
           <label className="block text-xs font-medium text-slate-500 mb-1">
             Nhà cung cấp
           </label>
-          <select
+          <SearchSelect
+            options={suppliers}
             value={supplierId}
-            onChange={(e) => setSupplierId(Number(e.target.value))}
+            onChange={(id) => setSupplierId(id)}
+            placeholder="Gõ để tìm nhà cung cấp..."
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">
+            Đơn vị tiền tệ
+          </label>
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
             className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           >
-            {suppliers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
+            {CURRENCIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">
+            Kho nhập (tuỳ chọn)
+          </label>
+          <select
+            value={warehouseId}
+            onChange={(e) => {
+              setWarehouseId(e.target.value ? Number(e.target.value) : "");
+              setZoneId("");
+            }}
+            className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          >
+            <option value="">— Chưa chọn —</option>
+            {warehouses.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.label}
               </option>
             ))}
           </select>
@@ -142,7 +195,7 @@ export default function PoForm({
             className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           >
             <option value="">— Chưa chọn —</option>
-            {zonesForCompany.map((z) => (
+            {zonesForSelection.map((z) => (
               <option key={z.id} value={z.id}>
                 {z.label}
               </option>
@@ -185,22 +238,12 @@ export default function PoForm({
               return (
                 <tr key={l.key} className="border-t border-slate-100">
                   <td className="px-3 py-2">
-                    <select
+                    <SearchSelect
+                      options={itemOptions}
                       value={l.itemId}
-                      onChange={(e) =>
-                        updateLine(l.key, {
-                          itemId: e.target.value ? Number(e.target.value) : "",
-                        })
-                      }
-                      className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-                    >
-                      <option value="">— Chọn mã hàng —</option>
-                      {items.map((it) => (
-                        <option key={it.id} value={it.id}>
-                          {it.maHang} — {it.tenHang}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(id) => updateLine(l.key, { itemId: id })}
+                      placeholder="Gõ để tìm mã hàng..."
+                    />
                   </td>
                   <td className="px-3 py-2">
                     <input

@@ -16,6 +16,8 @@ const NAV = [
   { href: "/danh-muc/cong-ty", label: "Công ty" },
   { href: "/danh-muc/kho", label: "Kho" },
   { href: "/danh-muc/mat-hang", label: "Mặt hàng" },
+  { href: "/danh-muc/nha-cung-cap", label: "Nhà cung cấp" },
+  { href: "/danh-muc/don-vi-van-tai", label: "Đơn vị vận tải" },
 ];
 
 export default async function AppLayout({

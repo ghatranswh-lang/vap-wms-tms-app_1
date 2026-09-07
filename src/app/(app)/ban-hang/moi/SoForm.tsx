@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { createSalesOrder, type SoFormState } from "./actions";
+import SearchSelect from "@/components/SearchSelect";
 
 type Option = { id: number; label: string };
 type ItemOption = { id: number; maHang: string; tenHang: string };
@@ -61,6 +62,11 @@ export default function SoForm({
     [lines]
   );
 
+  const itemOptions = useMemo(
+    () => items.map((it) => ({ id: it.id, label: `${it.maHang} — ${it.tenHang}` })),
+    [items]
+  );
+
   function updateLine(key: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
@@ -103,17 +109,12 @@ export default function SoForm({
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1">Khách hàng</label>
-          <select
+          <SearchSelect
+            options={customers}
             value={customerId}
-            onChange={(e) => setCustomerId(Number(e.target.value))}
-            className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-          >
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+            onChange={(id) => setCustomerId(id)}
+            placeholder="Gõ để tìm khách hàng..."
+          />
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1">Ghi chú</label>
@@ -144,20 +145,12 @@ export default function SoForm({
               return (
                 <tr key={l.key} className="border-t border-slate-100">
                   <td className="px-3 py-2">
-                    <select
+                    <SearchSelect
+                      options={itemOptions}
                       value={l.itemId}
-                      onChange={(e) =>
-                        updateLine(l.key, { itemId: e.target.value ? Number(e.target.value) : "" })
-                      }
-                      className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-                    >
-                      <option value="">— Chọn mã hàng —</option>
-                      {items.map((it) => (
-                        <option key={it.id} value={it.id}>
-                          {it.maHang} — {it.tenHang}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(id) => updateLine(l.key, { itemId: id })}
+                      placeholder="Gõ để tìm mã hàng..."
+                    />
                   </td>
                   <td className="px-3 py-2">
                     <input

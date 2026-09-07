@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { items } from "@/db/schema";
+import ItemForm from "./ItemForm";
 
 function formatMoney(v: string | null) {
   if (!v) return "—";
@@ -14,6 +15,8 @@ export default async function MatHangPage() {
       <h1 className="text-xl font-bold text-slate-900 mb-4">
         Danh mục Mặt hàng
       </h1>
+
+      <ItemForm />
 
       <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
         <table className="w-full text-sm">

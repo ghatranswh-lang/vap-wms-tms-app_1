@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { warehouses, zones, locations } from "@/db/schema";
 import { eq, count } from "drizzle-orm";
+import WarehouseForm from "./WarehouseForm";
 
 export default async function KhoPage() {
   const rows = await db
@@ -26,6 +27,8 @@ export default async function KhoPage() {
       <p className="text-sm text-slate-500 mb-4">
         Tổng {locationTotal} vị trí đã tạo trên toàn hệ thống.
       </p>
+
+      <WarehouseForm />
 
       <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
         <table className="w-full text-sm">
