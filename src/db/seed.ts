@@ -129,10 +129,10 @@ async function main() {
   const passwordHash = await bcrypt.hash("admin123", 10);
   const taiXePasswordHash = await bcrypt.hash("taixe123", 10);
   await db.insert(users).values([
-    { username: "admin", passwordHash, fullName: "Quản trị hệ thống", role: "ADMIN", xemCuoc: true },
+    { username: "admin", passwordHash, fullName: "Quản trị hệ thống", role: "ADMIN", xemCuoc: true, xemGiaNhap: true },
     { username: "kho.duchoa01", passwordHash, fullName: "NV Kho Đức Hòa", role: "NHAN_VIEN_KHO" },
     { username: "sale01", passwordHash, fullName: "NV Kinh doanh", role: "SALE" },
-    { username: "ketoan01", passwordHash, fullName: "NV Kế toán", role: "KE_TOAN" },
+    { username: "ketoan01", passwordHash, fullName: "NV Kế toán", role: "KE_TOAN", xemGiaNhap: true },
     // Tài khoản Cổng tài xế mẫu — gắn với 1 carrier cụ thể (chỉ thấy đơn của carrier đó)
     {
       username: "taixe01",

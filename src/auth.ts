@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { authConfig } from "./auth.config";
+import type { UserPermissions } from "@/db/schema";
 
 // Cấu hình đầy đủ (Node runtime) — dùng cho API route /api/auth/* và Server
 // Components/Actions. KHÔNG import file này từ middleware.ts (xem auth.config.ts).
@@ -38,6 +39,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           username: user.username,
           role: user.role,
           xemCuoc: user.xemCuoc,
+          xemGiaNhap: user.xemGiaNhap,
+          permissions: user.permissions,
           carrierId: user.carrierId,
         };
       },
@@ -50,6 +53,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = (user as { role?: string }).role;
         token.username = (user as { username?: string }).username;
         token.xemCuoc = (user as { xemCuoc?: boolean }).xemCuoc;
+        token.xemGiaNhap = (user as { xemGiaNhap?: boolean }).xemGiaNhap;
+        token.permissions = (
+          user as { permissions?: UserPermissions }
+        ).permissions;
         token.carrierId = (user as { carrierId?: number | null }).carrierId;
       }
       return token;
@@ -62,6 +69,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.username;
         (session.user as unknown as Record<string, unknown>).xemCuoc =
           token.xemCuoc;
+        (session.user as unknown as Record<string, unknown>).xemGiaNhap =
+          token.xemGiaNhap;
+        (session.user as unknown as Record<string, unknown>).permissions =
+          token.permissions;
         (session.user as unknown as Record<string, unknown>).carrierId =
           token.carrierId;
       }

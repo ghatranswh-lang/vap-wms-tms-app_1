@@ -97,6 +97,13 @@ export const companies = pgTable("companies", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Ma trận quyền Sửa/Xoá theo từng chức năng (module) — vd:
+// { mua_hang: { edit: true, delete: false }, xuat_kho: { edit: false, delete: false } }.
+// Admin luôn có toàn quyền bất kể map này (xem logic ở src/lib/perm.ts). Danh
+// sách module hợp lệ khai báo ở src/lib/perm.ts (MODULES) để dễ mở rộng.
+export type ModulePermission = { edit?: boolean; delete?: boolean };
+export type UserPermissions = Partial<Record<string, ModulePermission>>;
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: varchar("username", { length: 64 }).notNull().unique(),
@@ -105,6 +112,14 @@ export const users = pgTable("users", {
   role: roleEnum("role").notNull(),
   // Quyền xem cước vận chuyển (field-level ACL riêng cho các báo cáo cước)
   xemCuoc: boolean("xem_cuoc").notNull().default(false),
+  // Quyền xem giá nhập/đơn giá mua hàng (PO) — mặc định KHÔNG được xem, Admin
+  // cấp riêng cho từng user ở màn Quản lý người dùng (src/app/(app)/danh-muc/nguoi-dung).
+  // Xem thêm backfill 1 lần cho user đã có sẵn ở src/db/index.ts.
+  xemGiaNhap: boolean("xem_gia_nhap").notNull().default(false),
+  // Quyền Sửa/Xoá theo từng module — mặc định KHÔNG ai được (kể cả role quản
+  // lý), Admin cấp riêng cho từng user ở màn Quản lý người dùng. Vì tính năng
+  // Sửa/Xoá là mới hoàn toàn nên mặc định đóng là an toàn, không cần backfill.
+  permissions: jsonb("permissions").$type<UserPermissions>().notNull().default({}),
   // Nếu tài khoản là đối tác 3PL, gắn với 1 carrier cụ thể để chỉ thấy đơn của mình
   carrierId: integer("carrier_id"),
   active: boolean("active").notNull().default(true),
@@ -243,10 +258,17 @@ export const purchaseOrders = pgTable("purchase_orders", {
   supplierId: integer("supplier_id")
     .notNull()
     .references(() => suppliers.id),
-  // Cho phép chọn khu vực đích ngay từ PO (tránh phải Chuyển kho nội bộ thêm 1 bước)
+  // Kho nhập dự kiến (khu vực/vị trí thật chốt theo từng dòng — xem purchaseOrderLines
+  // — và có thể đổi khác khi thực sự Nhập kho; đây chỉ là gợi ý ban đầu).
+  warehouseId: integer("warehouse_id").references(() => warehouses.id),
+  // Cột cũ, giữ lại cho dữ liệu đã có — không còn dùng ở UI tạo PO (đã chuyển xuống
+  // khu vực/vị trí theo từng dòng hàng, vì 1 PO có thể nhập nhiều khu vực khác nhau).
   zoneId: integer("zone_id").references(() => zones.id),
   currency: varchar("currency", { length: 8 }).notNull().default("VND"),
   ghiChu: text("ghi_chu"),
+  // Trường tuỳ chỉnh do người dùng tự thêm (key -> value dạng text), không cố định
+  // trong schema — cho phép mỗi công ty bổ sung thông tin riêng mà không cần sửa code.
+  custom: jsonb("custom").notNull().default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -262,6 +284,12 @@ export const purchaseOrderLines = pgTable("purchase_order_lines", {
   qty: numeric("qty", { precision: 14, scale: 3 }).notNull(),
   vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).notNull().default("0"),
   tthh: tthhEnum("tthh").notNull().default("KTC"),
+  // Khu vực/Vị trí dự kiến cho dòng hàng này (chỉ áp dụng khi kho có WMS) — Nhập kho
+  // sẽ gợi ý sẵn theo đây nhưng vẫn cho chọn lại vị trí thật khi nhập.
+  zoneId: integer("zone_id").references(() => zones.id),
+  locationId: integer("location_id").references(() => locations.id),
+  // Trường tuỳ chỉnh do người dùng tự thêm cho từng dòng hàng.
+  custom: jsonb("custom").notNull().default({}),
   // Số lượng chưa nhập — duy trì bằng ứng dụng mỗi khi có goods_receipt_lines mới
   slChuaNhap: numeric("sl_chua_nhap", { precision: 14, scale: 3 }).notNull(),
 });

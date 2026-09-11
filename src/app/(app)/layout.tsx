@@ -26,12 +26,18 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
+  const role = (session?.user as unknown as { role?: string })?.role;
 
   // Tài khoản Tài xế chỉ dùng Cổng tài xế riêng (giao diện tối giản trên
   // điện thoại) — không vào giao diện quản lý kho/vận tải đầy đủ này.
-  if ((session?.user as unknown as { role?: string })?.role === "TAI_XE") {
+  if (role === "TAI_XE") {
     redirect("/tai-xe");
   }
+
+  const nav =
+    role === "ADMIN"
+      ? [...NAV, { href: "/danh-muc/nguoi-dung", label: "Người dùng" }]
+      : NAV;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -40,7 +46,7 @@ export default async function AppLayout({
           <div className="flex items-center gap-6">
             <span className="font-bold text-slate-900">VAP WMS+TMS</span>
             <nav className="flex items-center gap-4 text-sm">
-              {NAV.map((n) => (
+              {nav.map((n) => (
                 <Link
                   key={n.href}
                   href={n.href}

@@ -1,10 +1,10 @@
 import { db } from "@/db";
-import { companies, suppliers, items, zones, warehouses } from "@/db/schema";
+import { companies, suppliers, items, zones, warehouses, locations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import PoForm from "./PoForm";
 
 export default async function TaoPoPage() {
-  const [companyRows, supplierRows, itemRows, zoneRows, warehouseRows] =
+  const [companyRows, supplierRows, itemRows, zoneRows, warehouseRows, locationRows] =
     await Promise.all([
       db
         .select()
@@ -21,6 +21,7 @@ export default async function TaoPoPage() {
         })
         .from(zones),
       db.select().from(warehouses).where(eq(warehouses.active, true)),
+      db.select().from(locations).where(eq(locations.active, true)),
     ]);
 
   return (
@@ -38,7 +39,8 @@ export default async function TaoPoPage() {
           warehouseId: z.warehouseId,
           label: z.name,
         }))}
-        warehouses={warehouseRows.map((w) => ({ id: w.id, label: `${w.code} — ${w.name}` }))}
+        warehouses={warehouseRows.map((w) => ({ id: w.id, label: `${w.code} — ${w.name}`, wms: w.wms }))}
+        locations={locationRows.map((l) => ({ id: l.id, zoneId: l.zoneId, label: l.name }))}
       />
     </main>
   );

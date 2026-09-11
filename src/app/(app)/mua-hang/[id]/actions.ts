@@ -2,10 +2,14 @@
 
 import { db } from "@/db";
 import { purchaseOrders, purchaseOrderLines } from "@/db/schema";
-import { nextDocNumber } from "@/lib/docNumber";
+import { hasPerm } from "@/lib/perm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 
+// Cùng hình dạng payload với src/app/(app)/mua-hang/moi/actions.ts (form Tạo
+// PO) — tách riêng vì file "use server" chỉ được export hàm async, không
+// export schema/helper dùng chung được.
 const customFieldSchema = z.array(
   z.object({ key: z.string().min(1), value: z.string() })
 );
@@ -41,10 +45,23 @@ function customArrayToObject(arr: { key: string; value: string }[]) {
   return obj;
 }
 
-export async function createPurchaseOrder(
+async function poHasReceipt(poId: number): Promise<boolean> {
+  const lines = await db
+    .select({ qty: purchaseOrderLines.qty, slChuaNhap: purchaseOrderLines.slChuaNhap })
+    .from(purchaseOrderLines)
+    .where(eq(purchaseOrderLines.poId, poId));
+  return lines.some((l) => Number(l.slChuaNhap) < Number(l.qty) - 1e-6);
+}
+
+export async function updatePurchaseOrder(
+  poId: number,
   _prev: PoFormState,
   formData: FormData
 ): Promise<PoFormState> {
+  if (!(await hasPerm("mua_hang", "edit"))) {
+    return { error: "Bạn không có quyền sửa đơn mua hàng (PO)." };
+  }
+
   const raw = formData.get("payload");
   if (typeof raw !== "string") return { error: "Thiếu dữ liệu." };
 
@@ -59,20 +76,24 @@ export async function createPurchaseOrder(
   if (!parsed.success) {
     return {
       error:
-        parsed.error.issues[0]?.message || "Dữ liệu không hợp lệ — kiểm tra lại các dòng hàng.",
+        parsed.error.issues[0]?.message ||
+        "Dữ liệu không hợp lệ — kiểm tra lại các dòng hàng.",
+    };
+  }
+
+  if (await poHasReceipt(poId)) {
+    return {
+      error:
+        "Đơn này đã có nhập kho — không thể sửa để tránh sai lệch tồn kho. Vui lòng tạo đơn mua hàng mới nếu cần điều chỉnh thêm.",
     };
   }
 
   const { companyId, supplierId, warehouseId, currency, ghiChu, custom, lines } =
     parsed.data;
 
-  const poNumber = await nextDocNumber(purchaseOrders.poNumber, "PO");
-
-  const [po] = await db
-    .insert(purchaseOrders)
-    .values({
-      poNumber,
-      createdDate: new Date().toISOString().slice(0, 10),
+  await db
+    .update(purchaseOrders)
+    .set({
       companyId,
       supplierId,
       warehouseId,
@@ -80,11 +101,12 @@ export async function createPurchaseOrder(
       ghiChu,
       custom: customArrayToObject(custom),
     })
-    .returning();
+    .where(eq(purchaseOrders.id, poId));
 
+  await db.delete(purchaseOrderLines).where(eq(purchaseOrderLines.poId, poId));
   await db.insert(purchaseOrderLines).values(
     lines.map((l) => ({
-      poId: po.id,
+      poId,
       itemId: l.itemId,
       donGia: String(l.donGia),
       qty: String(l.qty),
@@ -97,5 +119,16 @@ export async function createPurchaseOrder(
     }))
   );
 
-  redirect(`/mua-hang/${po.id}`);
+  redirect(`/mua-hang/${poId}`);
+}
+
+export async function deletePurchaseOrder(poId: number) {
+  if (!(await hasPerm("mua_hang", "delete"))) {
+    redirect(`/mua-hang/${poId}?err=noperm`);
+  }
+  if (await poHasReceipt(poId)) {
+    redirect(`/mua-hang/${poId}?err=received`);
+  }
+  await db.delete(purchaseOrders).where(eq(purchaseOrders.id, poId));
+  redirect("/mua-hang");
 }
